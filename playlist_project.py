@@ -108,8 +108,8 @@ def main():
         list = []
         for song in results['items']:
             itemInfo = dict()
-            itemInfo['songName'] = song['track']['name']
-            itemInfo['songArtist'] = song['track']['artists'][0]['name']
+            itemInfo['track'] = song['track']['name']
+            itemInfo['artist'] = song['track']['artists'][0]['name']
             itemInfo['songId'] = song['track']['id']
             list.append(itemInfo)
         data['items'] = list 
@@ -255,8 +255,8 @@ def main():
             if 'artist' in info and 'track' in info:
                 songName = info['track']
                 songArtist = info['artist']
-                songs['songName'] = songName
-                songs['songArtist'] = songArtist
+                songs['artist'] = songName
+                songs['track'] = songArtist
                 listOfSongs.append(songs)
             #else:
                 #print(info)
@@ -302,14 +302,17 @@ def main():
         
     def addSongsToYoutube(listSpotifyPlaylistItems):
         for song in spotifyPlaylistItems['items']:
-            artist = song['songArtist']
-            track = song['songName']
+            artist = song['artist']
+            track = song['track']
             name = artist+" "+track
             youtubeId = youtubeIdFromArtisAndTitle(name)
             addItemToPlaylist('PLuzTVX73OkY7Z2Wx5hWHuytfYiQQ6DNka',youtubeId)
 
-    def addSongsToSpotify(listYoutubePlaylistItems):
-        for song in 
+    def addSongsToSpotify():
+        for song in playListItems['songs']:
+            artist = song['songArtist']
+            track = song['songName']
+            
 
     
     #youtubeSongAndArtistName = youtubeSongAndArtistName(playListItems)
@@ -322,7 +325,7 @@ def main():
     listSpotifyPlaylistItems(sp)
     youtubeSongAndArtistName = youtubeSongAndArtistName(listYoutubePlaylistItems(youtube))
     print(youtubeSongAndArtistName)
-    addSongsToYoutube(listSpotifyPlaylistItems(sp))
+    addSongsToSpotify()
     
     #print(playListItems)
     #youtubeIdFromArtisAndTitle(artistAndTitle)
