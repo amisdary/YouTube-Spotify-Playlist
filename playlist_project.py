@@ -27,52 +27,58 @@ from spotipy.oauth2 import SpotifyOAuth
 
 def main():
 
-    # Disable OAuthlib's HTTPS verification when running locally.
-    # *DO NOT* leave this option enabled in production.
-    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
+    def YoutubeOauthLogin():
+        # Disable OAuthlib's HTTPS verification when running locally.
+        # *DO NOT* leave this option enabled in production.
+        os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
 
-    api_service_name = "youtube"
-    api_version = "v3"
-    youtube_client_secrets_file = "youtube_client_secret.json"
-    #Scope = "https://www.googleapis.com/auth/youtube" if modyfying YouTube account
-    scopes = ["https://www.googleapis.com/auth/youtube"]
+        api_service_name = "youtube"
+        api_version = "v3"
+        youtube_client_secrets_file = "youtube_client_secret.json"
+        #Scope = "https://www.googleapis.com/auth/youtube" if modyfying YouTube account
+        scopes = ["https://www.googleapis.com/auth/youtube"]
 
-    
-    user_credentials = None
-    if os.path.exists('youtube_token.json'):
-        user_credentials = Credentials.from_authorized_user_file(
-            'youtube_token.json', scopes)
-    if not user_credentials or not user_credentials.valid:
-        if user_credentials and user_credentials.expired and user_credentials.refresh_token:
-            user_credentials.refresh(Request()) 
-        else:
-            flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
-                youtube_client_secrets_file, scopes)
-            user_credentials = flow.run_local_server(
-                port=8080, prompt="consent", authorization_prompt_message="")
-            authorization_url, state = flow.authorization_url(
-                access_type='offline')
-        with open('youtube_token.json', 'w') as token:
-            token.write(user_credentials.to_json())  
+        
+        user_credentials = None
+        if os.path.exists('youtube_token.json'):
+            user_credentials = Credentials.from_authorized_user_file(
+                'youtube_token.json', scopes)
+        if not user_credentials or not user_credentials.valid:
+            if user_credentials and user_credentials.expired and user_credentials.refresh_token:
+                user_credentials.refresh(Request()) 
+            else:
+                flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
+                    youtube_client_secrets_file, scopes)
+                user_credentials = flow.run_local_server(
+                    port=8080, prompt="consent", authorization_prompt_message="")
+                authorization_url, state = flow.authorization_url(
+                    access_type='offline')
+            with open('youtube_token.json', 'w') as token:
+                token.write(user_credentials.to_json())  
 
-    youtube = googleapiclient.discovery.build(
-        api_service_name, 
-        api_version, 
-        credentials=user_credentials)
+        youtube = googleapiclient.discovery.build(
+            api_service_name, 
+            api_version, 
+            credentials=user_credentials)
+
+        return youtube
 
 
-    spotify_client_secrets_file = open("spotify_client_secret.json")
-    data = json.load(spotify_client_secrets_file)
-    spotify_client_id = data['spotify_client_id']
-    spotify_client_secret = data['spotify_client_secret']
-    spotify_redirect_uri = data['spotify_redirect_uri']
-    spotify_scopes = "playlist-modify-public"
+    def SpotifyOAuthLogin():
+        client_secrets_file = open("spotify_client_secret.json")
+        data = json.load(client_secrets_file)
+        client_id = data['spotify_client_id']
+        client_secret = data['spotify_client_secret']
+        redirect_uri = data['spotify_redirect_uri']
+        scopes = "playlist-modify-public"
 
-    sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
-            client_id=spotify_client_id,
-            client_secret=spotify_client_secret,
-            redirect_uri=spotify_redirect_uri,
-            scope=spotify_scopes))
+        sp = spotipy.Spotify(auth_manager=SpotifyOAuth(
+                client_id=client_id,
+                client_secret=client_secret,
+                redirect_uri=redirect_uri,
+                scope=scopes))
+
+        return sp
 
     def listSpotifyPlaylists():
         results = sp.current_user_playlists()
@@ -85,12 +91,14 @@ def main():
             itemInfo['playlistId'] = playlists['id']
             list.append(itemInfo)
         data['items'] = list
+        
         return data
 
     def getSpotifyPlaylistId(SpotifyPlaylists, playlistTitle):
         for playlists in SpotifyPlaylists['items']:
             if (playlists['playlistName'] == playlistTitle):
                 return playlists['playlistId'] 
+        
         return None
 
     def spotifyPlaylistItems(playlistId):
@@ -105,21 +113,25 @@ def main():
             itemInfo['songId'] = song['track']['id']
             list.append(itemInfo)
         data['items'] = list 
+        
         return data
 
     def createSpotifyPlaylist(playlistTitle):
         userId = sp.current_user()['id']
         results = sp.user_playlist_create(user=userId, name=playlistTitle, public=True, collaborative=False, description="")
+        
         return results
 
     def listItemsOrCreatePlaylistSpotify(playlistId, playlistTitle):
         if(playlistId == None):
             createdPlaylist = createSpotifyPlaylist(playlistTitle)
             playlistId = createdPlaylist['id']
+        
         return spotifyPlaylistItems(playlistId)
 
     def addItemToSpotifyPlaylist(playlistId, trackId):
         results = sp.playlist_add_items(playlist_id=playlistId,items=trackId)
+        
         return results
 
 
@@ -152,13 +164,15 @@ def main():
             maxResults=25,
             mine=True
         )
+        
         return listUsersPlaylists.execute()
 
     #searches current user's YouTube playlists for a specified playlist title and returns its playlistId. Returns None if playlist doesn't exist
-    def getPlaylistId(playlistTitle):
+    def getPlaylistId(usersPlaylists, playlistTitle):
         for title in usersPlaylists['items']:
             if(title['snippet']['title'] == playlistTitle):
                 return title['id']
+        
         return None
     
     #creates a playlist on YouTube and returns the properties of the playlist
@@ -171,6 +185,7 @@ def main():
                 }
             }
         )
+        
         return createPlaylist.execute()
     
     #uses a specified youtube playlistID and returns a list of titles and urls for the items in that playlist
@@ -194,6 +209,7 @@ def main():
             itemInfo['url'] = url
             listOfItems.append(itemInfo)
         playListItems['items'] = listOfItems
+        
         return playListItems
 
     #Lists items of specified youtube playlist or create new playlist if one does not exist
@@ -219,6 +235,7 @@ def main():
                 }
             }
         )
+        
         return addItemsToPlaylist.execute()
 
     #Uses youtube_dl library methods to provide artist name and song title given a list of playlist items from youtube
@@ -244,6 +261,7 @@ def main():
             #else:
                 #print(info)
         data['songs'] = listOfSongs
+        
         return data
     
     #Uses ytmusic library methods to search youtube music for a given artist and song title, returning the videoId of the most viewed video
@@ -261,24 +279,50 @@ def main():
             if max is None or songViewCount > max:
                 max = songViewCount
                 videoId = search_results[i]['videoId']
+        
         return videoId
 
+    def listYoutubePlaylistItems(youtube):
+        usersPlaylists = listUsersPlaylists()
+        #only line of code that user would change
+        playlistTitle = "Spotify Songs"
+        playlistId = getPlaylistId(usersPlaylists, playlistTitle)
+        playListItems = listItemsOrCreatePlaylist(playlistId, playlistTitle)
 
-    usersPlaylists = listUsersPlaylists()
-    #only line of code that user would change
-    playlistTitle = "Spotify Songs"
-    playlistId = getPlaylistId(playlistTitle)
-    playListItems = listItemsOrCreatePlaylist(playlistId, playlistTitle)
-    youtubeSongAndArtistName = youtubeSongAndArtistName(playListItems)
-    SpotifyPlaylists = listSpotifyPlaylists()
-    SpotifyPlaylistTitle = "YouTube Music"
-    spotifyPlaylistId = getSpotifyPlaylistId(SpotifyPlaylists, SpotifyPlaylistTitle)
-    spotifyPlaylistItems = listItemsOrCreatePlaylistSpotify(spotifyPlaylistId,SpotifyPlaylistTitle)
+        return playListItems
+    
+    def listSpotifyPlaylistItems(sp):    
+        SpotifyPlaylists = listSpotifyPlaylists()
+        #only line of code that user would change
+        SpotifyPlaylistTitle = "YouTube Music"
+        spotifyPlaylistId = getSpotifyPlaylistId(SpotifyPlaylists, SpotifyPlaylistTitle)
+        spotifyPlaylistItems = listItemsOrCreatePlaylistSpotify(spotifyPlaylistId,SpotifyPlaylistTitle)
+
+        return spotifyPlaylistItems
+        
+    def addSongsToYoutube(listSpotifyPlaylistItems):
+        for song in spotifyPlaylistItems['items']:
+            artist = song['songArtist']
+            track = song['songName']
+            name = artist+" "+track
+            youtubeId = youtubeIdFromArtisAndTitle(name)
+            addItemToPlaylist('PLuzTVX73OkY7Z2Wx5hWHuytfYiQQ6DNka',youtubeId)
+
+    def addSongsToSpotify(listYoutubePlaylistItems):
+        for song in 
+
+    
+    #youtubeSongAndArtistName = youtubeSongAndArtistName(playListItems)
     #createSpotifyPlaylist(playlistTitle="Test1")
     #addItemToSpotifyPlaylist(playlistId="6ig704Ayq97zIM36dNVyDn",trackId=["6tNnz0d4tijmTed5YB434Q"])
     #addItemsToPlaylist(playlistId, videoId = "G_83KKDrggU")
-    print(playListItems)
-    print(spotifyPlaylistItems)
+    youtube = YoutubeOauthLogin()
+    sp = SpotifyOAuthLogin()
+    listYoutubePlaylistItems(youtube)
+    listSpotifyPlaylistItems(sp)
+    youtubeSongAndArtistName = youtubeSongAndArtistName(listYoutubePlaylistItems(youtube))
+    print(youtubeSongAndArtistName)
+    addSongsToYoutube(listSpotifyPlaylistItems(sp))
     
     #print(playListItems)
     #youtubeIdFromArtisAndTitle(artistAndTitle)
